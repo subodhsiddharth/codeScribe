@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import blog from "../model/blog";
 import User from "../model/user";
 
@@ -40,9 +41,9 @@ export const addBlog =  async( req , res , next ) => {
     })
 
     try {
-        const session = await MongoTopologyClosedError.startSession() ;
+        const session = await mongoose.startSession() ;
         session.startTransaction() ;
-        await blog.save({session}) ;
+        await blg.save({session}) ;
         existingUser.blogs.push(blg);
         await existingUser.save({session});
         await session.commitTransaction();
@@ -97,7 +98,9 @@ export const deleteBlog =  async ( req , res , next ) => {
     let blg ;
 
     try {
-        blg = await blog.findByIdAndRemove(id );
+        blg = await blog.findByIdAndRemove(id).populate('user');
+        await blg .user.blogs.pull(blg);
+        await blg.user.save();
     }catch(err){
         return console.log(err);
     }
@@ -106,6 +109,23 @@ export const deleteBlog =  async ( req , res , next ) => {
         return res.staus(200).json({message:"Not able to Deleted!!"});
     }
     return res.status(500).json({message:"Deleted Successfully!!"});
+}
+
+
+export const getByUserId  =  async ( req , res , next ) => {
+    const userId = req.params.id ;
+    let userBlogs ;
+
+    try {
+        userBlogs = await User.findById(userId).populate("blogs") ;
+    }catch(err){
+        return console.log(err);
+    }
+
+    if(!userBlogs){
+        return res.status(404).json({message:"No blogs found !!"});
+    }
+    return res.status(200).json({blogs:userBlogs});
 }
 
 
